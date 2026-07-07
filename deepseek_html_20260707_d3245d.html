@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trình chiếu ảnh với âm thanh</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #000;
+      overflow: hidden;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+
+    .slide-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    .slide {
+      width: 100%;
+      height: 100%;
+      display: none;
+      position: relative;
+    }
+
+    .slide.active {
+      display: block;
+    }
+
+    .slide img {
+      width: 100%;
+      height: 100vh;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* ===== NÚT ÂM THANNH - GÓC TRÁI TRÊN ===== */
+    .audio-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 44px;
+      height: 44px;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(0,0,0,0.4);
+      color: rgba(255,255,255,0.7);
+      font-size: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      transition: all 0.3s ease;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+
+    .audio-btn:hover {
+      background: rgba(255,255,255,0.25);
+      border-color: rgba(255,255,255,0.6);
+      transform: scale(1.1);
+    }
+
+    .audio-btn.playing {
+      border-color: rgba(255,200,50,0.6);
+      background: rgba(255,200,50,0.15);
+      color: #ffd700;
+      box-shadow: 0 0 20px rgba(255,200,50,0.1);
+    }
+
+    /* ===== NÚT ĐIỀU HƯỚNG SIÊU NHỎ ===== */
+    .nav-btn {
+      position: fixed;
+      bottom: 20px;
+      width: 32px;
+      height: 32px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(0,0,0,0.3);
+      color: rgba(255,255,255,0.3);
+      font-size: 13px;
+      border-radius: 50%;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      transition: all 0.3s ease;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+
+    .nav-btn:hover {
+      background: rgba(255,255,255,0.4);
+      color: rgba(0,0,0,0.7);
+      border-color: rgba(255,255,255,0.5);
+      transform: scale(1.15);
+    }
+
+    #prev {
+      left: 20px;
+    }
+
+    #next {
+      right: 20px;
+    }
+
+    /* ===== SỐ SLIDE (tùy chọn) ===== */
+    .slide-counter {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.15);
+      font-size: 11px;
+      font-family: Arial, sans-serif;
+      letter-spacing: 1px;
+      z-index: 998;
+      pointer-events: none;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+      .audio-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+        top: 15px;
+        left: 15px;
+      }
+      .nav-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 11px;
+        bottom: 15px;
+      }
+      #prev {
+        left: 15px;
+      }
+      #next {
+        right: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="slide-container">
+    <!-- SLIDE 1 -->
+    <div class="slide active">
+      <img src="https://picsum.photos/1920/1080?random=1" alt="Ảnh 1">
+      <!-- Nút âm thanh riêng cho từng slide -->
+      <button class="audio-btn" data-audio="https://voca.roo/1b1ptgbiCU2G">🔊</button>
+    </div>
+
+    <!-- SLIDE 2 -->
+    <div class="slide">
+      <img src="https://picsum.photos/1920/1080?random=2" alt="Ảnh 2">
+      <button class="audio-btn" data-audio="https://voca.roo/1b1ptgbiCU2G">🔊</button>
+    </div>
+
+    <!-- SLIDE 3 -->
+    <div class="slide">
+      <img src="https://picsum.photos/1920/1080?random=3" alt="Ảnh 3">
+      <button class="audio-btn" data-audio="https://voca.roo/1b1ptgbiCU2G">🔊</button>
+    </div>
+
+    <!-- SLIDE 4 -->
+    <div class="slide">
+      <img src="https://picsum.photos/1920/1080?random=4" alt="Ảnh 4">
+      <button class="audio-btn" data-audio="https://voca.roo/1b1ptgbiCU2G">🔊</button>
+    </div>
+
+    <!-- Nút điều hướng -->
+    <button class="nav-btn" id="prev">◀</button>
+    <button class="nav-btn" id="next">▶</button>
+
+    <!-- Số slide -->
+    <div class="slide-counter" id="counter">1 / 4</div>
+  </div>
+
+  <script>
+    // =============================================
+    // 1. QUẢN LÝ SLIDE
+    // =============================================
+    const slides = document.querySelectorAll('.slide');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+    const counter = document.getElementById('counter');
+    let current = 0;
+    const total = slides.length;
+
+    function goTo(index) {
+      slides.forEach(s => s.classList.remove('active'));
+      slides[index].classList.add('active');
+      if (counter) {
+        counter.textContent = `${index + 1} / ${total}`;
+      }
+    }
+
+    function nextSlide() {
+      current = (current + 1) % total;
+      goTo(current);
+    }
+
+    function prevSlide() {
+      current = (current - 1 + total) % total;
+      goTo(current);
+    }
+
+    nextBtn.addEventListener('click', nextSlide);
+    prevBtn.addEventListener('click', prevSlide);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') nextSlide();
+      if (e.key === 'ArrowLeft') prevSlide();
+    });
+
+    // =============================================
+    // 2. QUẢN LÝ ÂM THANH
+    // =============================================
+    // Tạo 1 audio element dùng chung
+    const audio = new Audio();
+    let currentAudioBtn = null;
+    let isPlaying = false;
+
+    // Lấy tất cả nút âm thanh
+    const audioBtns = document.querySelectorAll('.audio-btn');
+
+    audioBtns.forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation(); // Không ảnh hưởng đến sự kiện khác
+        const audioUrl = this.dataset.audio;
+
+        // Nếu đang phát và click vào cùng nút -> tạm dừng
+        if (currentAudioBtn === this && isPlaying) {
+          audio.pause();
+          isPlaying = false;
+          this.classList.remove('playing');
+          this.textContent = '🔊';
+          return;
+        }
+
+        // Nếu đang phát nhưng click nút khác -> chuyển bài mới
+        if (currentAudioBtn && currentAudioBtn !== this) {
+          audio.pause();
+          currentAudioBtn.classList.remove('playing');
+          currentAudioBtn.textContent = '🔊';
+        }
+
+        // Load và phát audio mới
+        audio.src = audioUrl;
+        audio.load();
+        audio.play().then(() => {
+          isPlaying = true;
+          currentAudioBtn = this;
+          this.classList.add('playing');
+          this.textContent = '⏸';
+        }).catch(err => {
+          console.log('Không thể phát audio:', err);
+          // Vẫn hiển thị trạng thái dù lỗi (do CORS hoặc link hỏng)
+          isPlaying = true;
+          currentAudioBtn = this;
+          this.classList.add('playing');
+          this.textContent = '⏸';
+        });
+      });
+    });
+
+    // Tự động dừng khi audio kết thúc
+    audio.addEventListener('ended', function() {
+      if (currentAudioBtn) {
+        currentAudioBtn.classList.remove('playing');
+        currentAudioBtn.textContent = '🔊';
+        isPlaying = false;
+        currentAudioBtn = null;
+      }
+    });
+
+    // Xử lý khi chuyển slide: nếu đang phát thì tiếp tục phát (không dừng)
+    // Nhưng nếu muốn dừng khi chuyển slide, bỏ comment đoạn dưới:
+    /*
+    const originalGoTo = goTo;
+    goTo = function(index) {
+      if (audio && isPlaying) {
+        audio.pause();
+        if (currentAudioBtn) {
+          currentAudioBtn.classList.remove('playing');
+          currentAudioBtn.textContent = '🔊';
+        }
+        isPlaying = false;
+        currentAudioBtn = null;
+      }
+      originalGoTo(index);
+    };
+    */
+
+    // =============================================
+    // 3. TỰ ĐỘNG CHẠY (TÙY CHỌN)
+    // =============================================
+    // setInterval(nextSlide, 5000);
+  </script>
+</body>
+</html>
